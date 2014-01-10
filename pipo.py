@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 pipo is a pip wrapper and utility belt to handle OpenERP installations
@@ -53,13 +53,22 @@ def get_manifest_lines(dir):
     return '\n'.join(lines)
 
 
+def _pprint(obj):
+    """ Return a pretty-printed string representation of an object """
+    from StringIO import StringIO
+    from pprint import pprint
+    f = StringIO()
+    pprint(obj, f)
+    res = f.getvalue()
+    f.close()
+    return res
+
+
 def setup(mod_dir, series='7.0', force=True, cli=False):
     try:
         import setuptools
     except ImportError:
-        return "ERROR: setuptools not available. Try 'pip install setuptools'."
-    from pprint import pprint
-    import io
+        return "ERROR: setuptools not available. You need to 'pip install setuptools'."
 
     def dir2pkgname(dir):
         return 'openerp-' + dir.replace('_', '-')
@@ -113,10 +122,7 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
         'package_data': {'openerp.addons.' + mod_name: package_data},
         'install_requires': [dir2pkgname(x) for x in manif.get('depends')]}
 
-    with io.StringIO() as f:
-        pprint(setup_data, f)
-        setup_data_text = f.getvalue()
-
+    setup_data_text = _pprint(setup_data)
     with open(os.path.join(mod_dir, 'setup.py'), 'w') as f:
         f.write("""\
 #! /usr/bin/env python
