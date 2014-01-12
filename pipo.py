@@ -145,7 +145,7 @@ setuptools.setup(**setup_data)
     return ""
 
 
-def build(path_glob, dist_dir, cli=False):
+def build(path_glob, dist_dir, force=False, cli=False):
     import glob
     import subprocess
     import shutil
@@ -191,17 +191,17 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2 or sys.argv[1] == "help":
         print(__doc__)
-
-    command = sys.argv[1]
-    params = sys.argv[2:]
-
-    if command == 'setup' and params:
-        setup(params[0], cli=True)
-
-    elif command == 'build' and params:
-        module_dir = params[0]
-        dist_dir = len(params) > 1 and params[1] or None
-        build(module_dir, dist_dir, cli=True)
-
     else:
-        print("Invalid options. Type 'pipo help' for information")
+        command = sys.argv[1]
+        params = sys.argv[2:]
+
+        if command == 'setup' and params:
+            setup(params[0], cli=True)
+
+        elif command == 'build' and params:
+            module_dir = params[0]
+            dist_dir = len(params) > 1 and params[1] or None
+            build(module_dir, dist_dir, cli=True)
+
+        else:
+            print("Invalid options. Type 'pipo help' for information")
