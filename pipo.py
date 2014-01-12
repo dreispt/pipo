@@ -64,14 +64,20 @@ def _pprint(obj):
     return res
 
 
+def _get_pkgname(name):
+    return ('openerp-' + name).replace('_', '-')
+
+
+def _get_modname(path):
+    return (os.path.basename(path) or
+            os.path.basename(os.path.dirname(path)))
+
+
 def setup(mod_dir, series='7.0', force=True, cli=False):
     try:
         import setuptools
     except ImportError:
-        return "ERROR: setuptools not available. You need to 'pip install setuptools'."
-
-    def dir2pkgname(dir):
-        return 'openerp-' + dir.replace('_', '-')
+        return "ERROR: setuptools not available. You should 'pip install setuptools'."
 
     # Check directory exists
     if not os.path.isdir(mod_dir):
@@ -80,8 +86,8 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
         return False
 
     # module name
-    mod_name = os.path.basename(mod_dir)
-    mod_dotpath = 'openerp.addons.%s' % mod_name
+    mod_name = _get_modname(mod_dir)
+    mod_dotpath = "openerp.addons." + mod_name
     if cli:
         print("* Generating setup.py for %s" % mod_dotpath)
 
@@ -94,7 +100,7 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
             old_revno = open(revno_file, 'r').readlines()
             if revno != old_revno:
                 return "no changes."
-        except FileNotFoundError:
+        except OSError:
             pass
     open('revno.txt', 'w').write(revno)
 
@@ -109,7 +115,7 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
     if not manif.get('installable', True):
         return "not installable."
     setup_data = {
-        'name': dir2pkgname(mod_name),
+        'name': _get_pkgname(mod_name),
         'version': series + '.' + str(revno),
         'description': manif.get('name'),
         'long_description': manif.get('description'),
@@ -120,7 +126,7 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
         'package_dir': {mod_dotpath: "."},
         'packages': packages,
         'package_data': {'openerp.addons.' + mod_name: package_data},
-        'install_requires': [dir2pkgname(x) for x in manif.get('depends')]}
+        'install_requires': [_get_pkgname(x) for x in manif.get('depends')]}
 
     setup_data_text = _pprint(setup_data)
     with open(os.path.join(mod_dir, 'setup.py'), 'w') as f:
@@ -139,25 +145,32 @@ setuptools.setup(**setup_data)
     return ""
 
 
-def build(path_glob, dist_dir):
+def build(path_glob, dist_dir, cli=False):
     import glob
     import subprocess
     import shutil
 
     for mod_dir in sorted(glob.glob(path_glob)):
+        if cli:
+            print("Building %s" % (mod_dir))
+
         # Pre-checks
         if not os.path.isdir(mod_dir):
+            if cli:
+                print("ERROR: not a valid directory.")
             continue
         if not os.path.exists(join(mod_dir, '__openerp__.py')):
+            if cli:
+                print("ERROR: __openerp__.py not found")
             continue
 
         # Start
-        module = os.path.basename(mod_dir)
-        print('*', module,)
-        dist_dir = os.path.abspath(dist_dir)
+        module = _get_modname(mod_dir)
+        print '* %s ...' % module,
+        dist_dir = dist_dir and os.path.abspath(dist_dir)
 
         # Generate setup.py
-        print(setup(mod_dir),)
+        setup(mod_dir, cli=False)
 
         # Call setup.py
         cwd = os.path.abspath(os.getcwd())
@@ -167,21 +180,28 @@ def build(path_glob, dist_dir):
         os.chdir(cwd)
 
         # Move distribution to final location
-        for x in os.listdir(join(mod_dir, 'dist')):
-            shutil.move(join(mod_dir, 'dist', x), join(dist_dir, x))
-        print(' --> DONE.')
+        if dist_dir:
+            for x in os.listdir(join(mod_dir, 'dist')):
+                shutil.move(join(mod_dir, 'dist', x), join(dist_dir, x))
+
+        print ' DONE.'
 
 
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2 or sys.argv[1] == "help":
         print(__doc__)
-    elif sys.argv[1] == 'setup' and len(sys.argv) == 3:
-        module_dir = sys.argv[2]
-        setup(module_dir, cli=True)
-    elif sys.argv[1] == 'build' and len(sys.argv) >= 3:
-        module_dir = sys.argv[2]
-        dist_dir = len(sys.argv) >= 4 and sys.argv[3] or None
-        print(build(module_dir, dist_dir))
+
+    command = sys.argv[1]
+    params = sys.argv[2:]
+
+    if command == 'setup' and params:
+        setup(params[0], cli=True)
+
+    elif command == 'build' and params:
+        module_dir = params[0]
+        dist_dir = len(params) > 1 and params[1] or None
+        build(module_dir, dist_dir, cli=True)
+
     else:
-        print("Invalid options. Type 'pipo help' for help.")
+        print("Invalid options. Type 'pipo help' for information")

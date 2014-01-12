@@ -1,2 +1,2 @@
-./pipo.py build test-workdir/openerp-china/contract/ test-workdir/dist/
-
+./pipo.py build test-workdir/openerp-china/contract/ test-workdir/dist
+echo "Tests finished."
