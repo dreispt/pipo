@@ -18,7 +18,7 @@ def get_revno(module_path='.'):
     cmd = 'bzr log --limit=1 --line ' + module_path
     p = Popen(cmd.split(' '), stdout=PIPE, stderr=PIPE)
     out, err = p.communicate()
-    revno = out.decode().strip().split(':')[0]
+    revno = out.strip().split(':')[0]
     return revno
 
 
@@ -73,11 +73,31 @@ def _get_modname(path):
             os.path.basename(os.path.dirname(path)))
 
 
+#def _is_module(mod_dir):
+#    if os.path.isdir(mod_dir):
+#        if os.path.exists(join(mod_dir, '__openerp__.py')):
+#            return True
+#    return False
+
+
+def _list_modules(parent_path):
+    res = []
+    if os.path.isdir(parent_path):
+        for root, dirs, files in os.walk(parent_path):
+            for x in dirs:
+                curdir = join(root, x)
+                if os.path.exists(join(curdir, '__openerp__.py')):
+                    res.append(curdir)
+    return res
+
+
 def setup(mod_dir, series='7.0', force=True, cli=False):
     try:
         import setuptools
     except ImportError:
-        return "ERROR: setuptools not available. You should 'pip install setuptools'."
+        print"ERROR: setuptools not available. "
+        "You should 'pip install setuptools'."
+        return False
 
     # Check directory exists
     if not os.path.isdir(mod_dir):
@@ -91,7 +111,6 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
     if cli:
         print("* Generating setup.py for %s" % mod_dotpath)
 
-    cwd = os.path.abspath(os.getcwd())
     mod_dir = os.path.abspath(mod_dir)
     os.chdir(mod_dir)
 
@@ -103,7 +122,7 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
             revno_file = os.path.join(mod_dir, 'revno.txt')
             old_revno = open(revno_file, 'r').readlines()
             if revno != old_revno:
-                return "no changes."
+                return False  # "no changes."
         except OSError:
             pass
     open('revno.txt', 'w').write(revno)
@@ -117,7 +136,7 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
     # TODO: use safe eval
     manif = eval(open(join(mod_dir, '__openerp__.py')).read())
     if not manif.get('installable', True):
-        return "not installable."
+        return False  # "not installable."
     setup_data = {
         'name': _get_pkgname(mod_name),
         'version': series + '.' + str(revno),
@@ -147,50 +166,28 @@ setuptools.setup(**setup_data)
     # Build Manifest
     open(join(mod_dir, 'MANIFEST.in'), 'w').write(get_manifest_lines(mod_dir))
     #os.chdir(cwd)
-    return ""
+    return True
 
 
-def build(path_glob, dist_dir, force=False, cli=False):
-    import glob
+def build(path, dist_dir, force=False, cli=False):
     import subprocess
     import shutil
 
-    for mod_dir in sorted(glob.glob(path_glob)):
+    dist_dir = dist_dir and os.path.abspath(dist_dir)
+    for mod_dir in _list_modules(os.path.abspath(path)):
         if cli:
-            print("Building %s" % (mod_dir))
-
-        # Pre-checks
-        if not os.path.isdir(mod_dir):
-            # if cli:
-            #    print("ERROR: not a valid directory.")
-            continue
-        if not os.path.exists(join(mod_dir, '__openerp__.py')):
-            # if cli:
-            #    print("ERROR: __openerp__.py not found")
-            continue
-
-        # Start
-        module = _get_modname(mod_dir)
-        print '* %s ...' % module,
-        mod_dir = os.path.abspath(mod_dir)
-        dist_dir = dist_dir and os.path.abspath(dist_dir)
-
+            print "Building %s" % (mod_dir),
         # Generate setup.py
-        setup(mod_dir, cli=False)
-
-        # Call setup.py
-        cwd = os.path.abspath(os.getcwd())
-        os.chdir(mod_dir)
-        subprocess.call(['python', 'setup.py', '--quiet', 'sdist'])
-        #os.chdir(cwd)
-
-        # Move distribution to final location
-        if dist_dir:
-            for x in os.listdir(join(mod_dir, 'dist')):
-                print "move", mod_dir, x, dist_dir
-                shutil.move(join(mod_dir, 'dist', x), join(dist_dir, x))
-
-        print ' DONE.'
+        if setup(mod_dir, cli=False):
+            # Call setup.py
+            os.chdir(mod_dir)
+            subprocess.call(['python', 'setup.py', '--quiet', 'sdist'])
+            # Move distribution to final location
+            if dist_dir:
+                for x in os.listdir(join(mod_dir, 'dist')):
+                    print "->", dist_dir, x
+                    shutil.move(join(mod_dir, 'dist', x), join(dist_dir, x))
+    print 'DONE.'
 
 
 if __name__ == "__main__":
