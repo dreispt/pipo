@@ -91,6 +91,10 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
     if cli:
         print("* Generating setup.py for %s" % mod_dotpath)
 
+    cwd = os.path.abspath(os.getcwd())
+    mod_dir = os.path.abspath(mod_dir)
+    os.chdir(mod_dir)
+
     # Check vcs revision number
     # Unless forced, exit if revision number hasn't changed
     revno = get_revno(mod_dir)
@@ -106,8 +110,8 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
 
     # prepare data for setuptoolsy
     packages = ([mod_dotpath] +
-                [mod_dotpath + '%s.%s' % (mod_name, x)
-                 for x in setuptools.find_packages()])
+                [mod_dotpath + '.%s' % x
+                 for x in setuptools.find_packages('.')])
     package_data = get_package_data(mod_dir)
 
     # TODO: use safe eval
@@ -142,6 +146,7 @@ setuptools.setup(**setup_data)
     open(join(mod_dir, 'README.rst'), 'w').write(manif.get('description', ''))
     # Build Manifest
     open(join(mod_dir, 'MANIFEST.in'), 'w').write(get_manifest_lines(mod_dir))
+    #os.chdir(cwd)
     return ""
 
 
@@ -156,17 +161,18 @@ def build(path_glob, dist_dir, force=False, cli=False):
 
         # Pre-checks
         if not os.path.isdir(mod_dir):
-            if cli:
-                print("ERROR: not a valid directory.")
+            # if cli:
+            #    print("ERROR: not a valid directory.")
             continue
         if not os.path.exists(join(mod_dir, '__openerp__.py')):
-            if cli:
-                print("ERROR: __openerp__.py not found")
+            # if cli:
+            #    print("ERROR: __openerp__.py not found")
             continue
 
         # Start
         module = _get_modname(mod_dir)
         print '* %s ...' % module,
+        mod_dir = os.path.abspath(mod_dir)
         dist_dir = dist_dir and os.path.abspath(dist_dir)
 
         # Generate setup.py
@@ -174,14 +180,14 @@ def build(path_glob, dist_dir, force=False, cli=False):
 
         # Call setup.py
         cwd = os.path.abspath(os.getcwd())
-        mod_dir = os.path.abspath(mod_dir)
         os.chdir(mod_dir)
         subprocess.call(['python', 'setup.py', '--quiet', 'sdist'])
-        os.chdir(cwd)
+        #os.chdir(cwd)
 
         # Move distribution to final location
         if dist_dir:
             for x in os.listdir(join(mod_dir, 'dist')):
+                print "move", mod_dir, x, dist_dir
                 shutil.move(join(mod_dir, 'dist', x), join(dist_dir, x))
 
         print ' DONE.'
