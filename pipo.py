@@ -178,7 +178,7 @@ def build(path, dist_dir, force=False, cli=False):
         if cli:
             print "Building %s" % (mod_dir),
         # Generate setup.py
-        if setup(mod_dir, cli=False):
+        if setup(mod_dir, force=force, cli=False):
             # Call setup.py
             os.chdir(mod_dir)
             subprocess.call(['python', 'setup.py', '--quiet', 'sdist'])
