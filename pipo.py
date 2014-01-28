@@ -123,8 +123,9 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
     if not force:
         try:
             revno_file = os.path.join(mod_dir, 'revno.txt')
-            old_revno = open(revno_file, 'r').readlines()
-            if revno != old_revno:
+            old_revno = open(revno_file, 'r').read()
+            print old_revno, '->', revno
+            if revno == old_revno:
                 return False  # "no changes."
         except IOError:
             pass
@@ -178,11 +179,12 @@ def build(path, dist_dir, force=False, cli=False):
 
     dist_dir = dist_dir and os.path.abspath(dist_dir)
     if cli:
+        print "Building!"
         print "* Target dir is ", os.path.abspath(path)
         print "* Dist dir is ", dist_dir
     for mod_dir in sorted(_list_modules(os.path.abspath(path))):
         if cli:
-            print "Building %s" % (mod_dir),
+            print "* %s" % (mod_dir),
         # Generate setup.py
         if setup(mod_dir, force=force, cli=False):
             # Call setup.py
@@ -191,10 +193,9 @@ def build(path, dist_dir, force=False, cli=False):
             # Move distribution to final location
             if dist_dir:
                 for x in os.listdir(join(mod_dir, 'dist')):
-                    print "->", dist_dir, x
                     shutil.move(join(mod_dir, 'dist', x), join(dist_dir, x))
         else:
-            print "...skipped."
+            print "."
     # print 'DONE.'
 
 
