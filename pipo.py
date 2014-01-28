@@ -83,6 +83,9 @@ def _get_modname(path):
 def _list_modules(parent_path):
     res = []
     if os.path.isdir(parent_path):
+        if os.path.exists(join(parent_path, '__openerp__.py')):
+            return [parent_path]
+        # else:
         for root, dirs, files in os.walk(parent_path):
             for x in dirs:
                 curdir = join(root, x)
@@ -123,7 +126,7 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
             old_revno = open(revno_file, 'r').readlines()
             if revno != old_revno:
                 return False  # "no changes."
-        except OSError:
+        except IOError:
             pass
     open('revno.txt', 'w').write(revno)
 
@@ -174,7 +177,10 @@ def build(path, dist_dir, force=False, cli=False):
     import shutil
 
     dist_dir = dist_dir and os.path.abspath(dist_dir)
-    for mod_dir in _list_modules(os.path.abspath(path)):
+    if cli:
+        print "* Target dir is ", os.path.abspath(path)
+        print "* Dist dir is ", dist_dir
+    for mod_dir in sorted(_list_modules(os.path.abspath(path))):
         if cli:
             print "Building %s" % (mod_dir),
         # Generate setup.py
@@ -187,7 +193,9 @@ def build(path, dist_dir, force=False, cli=False):
                 for x in os.listdir(join(mod_dir, 'dist')):
                     print "->", dist_dir, x
                     shutil.move(join(mod_dir, 'dist', x), join(dist_dir, x))
-    print 'DONE.'
+        else:
+            print "...skipped."
+    # print 'DONE.'
 
 
 if __name__ == "__main__":
@@ -204,7 +212,10 @@ if __name__ == "__main__":
         elif command == 'build' and params:
             module_dir = params[0]
             dist_dir = len(params) > 1 and params[1] or None
-            build(module_dir, dist_dir, cli=True)
+            force = len(params) > 2 and params[2] == '--force' or None
+            if force:
+                print "FORCE"
+            build(module_dir, dist_dir, force=force, cli=True)
 
         else:
             print("Invalid options. Type 'pipo help' for information")
