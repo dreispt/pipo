@@ -199,6 +199,19 @@ def build(path, dist_dir, force=False, cli=False):
     # print 'DONE.'
 
 
+
+def pip(command, *args):
+    from subprocess import Popen, PIPE
+    cmd = ['pip', command]
+    if command in ['install', 'search']:
+        extra = ['http://openerpapps.info/simple/openerp/7.0']
+        cmd.extend(['--extra-index-url', ','.join(extra)])
+    cmd.extend(list(args[0]))
+    print ' '.join(cmd)
+    p = Popen(cmd)
+    p.communicate()
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2 or sys.argv[1] == "help":
@@ -219,4 +232,4 @@ if __name__ == "__main__":
             build(module_dir, dist_dir, force=force, cli=True)
 
         else:
-            print("Invalid options. Type 'pipo help' for information")
+            pip(command, params)
