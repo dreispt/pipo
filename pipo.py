@@ -199,17 +199,26 @@ def build(path, dist_dir, force=False, cli=False):
     # print 'DONE.'
 
 
+def _run_shell(cmd):
+    from subprocess import Popen, PIPE
+    print ' '.join(cmd)
+    p = Popen(cmd)
+    p.communicate()
+
+
+def create(name):
+    from subprocess import Popen, PIPE
+    _run_shell(['virtualenv', '--system-site-packages', name])
+    _run_shell(['createdb', name])
+
 
 def pip(command, *args):
-    from subprocess import Popen, PIPE
     cmd = ['pip', command]
     if command in ['install', 'search']:
         extra = ['http://openerpapps.info/simple/openerp/7.0']
         cmd.extend(['--extra-index-url', ','.join(extra)])
     cmd.extend(list(args[0]))
-    print ' '.join(cmd)
-    p = Popen(cmd)
-    p.communicate()
+    _run_shell(cmd)
 
 
 if __name__ == "__main__":
@@ -230,6 +239,9 @@ if __name__ == "__main__":
             if force:
                 print "FORCE"
             build(module_dir, dist_dir, force=force, cli=True)
+
+        elif command == 'create':
+            create(params[0])
 
         else:
             pip(command, params)
