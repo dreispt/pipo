@@ -234,7 +234,7 @@ if __name__ == "__main__":
     else:
         command = sys.argv[1]
         params = sys.argv[2:]
-        print params
+        force = False
 
         if command == 'setup' and params:
             setup(params[0], cli=True)
