@@ -98,8 +98,7 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
     try:
         import setuptools
     except ImportError:
-        print "\nERROR: setuptools not available. "
-              "You should 'pip install setuptools'."
+        print "\nERROR: setuptools not available. You should 'pip install setuptools'."
         return False
 
     # Check directory exists
