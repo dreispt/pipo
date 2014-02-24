@@ -98,7 +98,8 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
     try:
         import setuptools
     except ImportError:
-        print "\nERROR: setuptools not available. You should 'pip install setuptools'."
+        print("\nERROR: setuptools not available. "
+              "You should 'pip install setuptools'.")
         return False
 
     # Check directory exists
@@ -123,14 +124,15 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
         try:
             revno_file = os.path.join(mod_dir, 'revno.txt')
             old_revno = open(revno_file, 'r').read()
-            print mod_dir, old_revno, '->', revno
             if revno == old_revno:
                 return False  # "no changes."
+            else:
+                print mod_dir, old_revno, '->', revno
         except IOError:
             pass
     open('revno.txt', 'w').write(revno)
 
-    # prepare data for setuptoolsy
+    # prepare data for setuptools
     packages = ([mod_dotpath] +
                 [mod_dotpath + '.%s' % x
                  for x in setuptools.find_packages('.')])
@@ -140,6 +142,11 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
     manif = eval(open(join(mod_dir, '__openerp__.py')).read())
     if not manif.get('installable', True):
         return False  # "not installable."
+
+    manif_depends = [_get_pkgname(x) for x in manif.get('depends')]
+    if 'python' in manif.get('external_dependencies', {}):
+        manif_depends.extend(manif['external_dependencies']['python'])
+
     setup_data = {
         'name': _get_pkgname(mod_name),
         'version': series + '.' + str(revno),
@@ -152,7 +159,7 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
         'package_dir': {mod_dotpath: "."},
         'packages': packages,
         'package_data': {'openerp.addons.' + mod_name: package_data},
-        'install_requires': [_get_pkgname(x) for x in manif.get('depends')]}
+        'install_requires': manif_depends, }
 
     setup_data_text = _pprint(setup_data)
     with open(os.path.join(mod_dir, 'setup.py'), 'w') as f:
@@ -183,7 +190,7 @@ def build(path, dist_dir, force=False, cli=False):
         print "* Dist dir is ", dist_dir
     for mod_dir in sorted(_list_modules(os.path.abspath(path))):
         if cli:
-            print "* %s" % (os.path.dirname(mod_dir)),
+            print "* %s" % (os.path.basename(mod_dir)),
         # Generate setup.py
         if setup(mod_dir, force=force, cli=False):
             # Call setup.py
@@ -193,8 +200,8 @@ def build(path, dist_dir, force=False, cli=False):
             if dist_dir:
                 for x in os.listdir(join(mod_dir, 'dist')):
                     shutil.move(join(mod_dir, 'dist', x), join(dist_dir, x))
-        else:
-            print "."
+        #else:
+        #    print "."
     # print 'DONE.'
 
 
@@ -227,14 +234,17 @@ if __name__ == "__main__":
     else:
         command = sys.argv[1]
         params = sys.argv[2:]
+        print params
 
         if command == 'setup' and params:
             setup(params[0], cli=True)
 
         elif command == 'build' and params:
-            module_dir = params[0]
+            module_dir = params.pop()
+            if module_dir == '--force':
+                force = True
+                module_dir = params[0]
             dist_dir = len(params) > 1 and params[1] or None
-            force = len(params) > 2 and params[2] == '--force' or None
             if force:
                 print "FORCE"
             build(module_dir, dist_dir, force=force, cli=True)
