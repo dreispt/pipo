@@ -98,8 +98,8 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
     try:
         import setuptools
     except ImportError:
-        print"ERROR: setuptools not available. "
-        "You should 'pip install setuptools'."
+        print "\nERROR: setuptools not available. "
+              "You should 'pip install setuptools'."
         return False
 
     # Check directory exists
@@ -124,7 +124,7 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
         try:
             revno_file = os.path.join(mod_dir, 'revno.txt')
             old_revno = open(revno_file, 'r').read()
-            print old_revno, '->', revno
+            print mod_dir, old_revno, '->', revno
             if revno == old_revno:
                 return False  # "no changes."
         except IOError:
@@ -179,12 +179,12 @@ def build(path, dist_dir, force=False, cli=False):
 
     dist_dir = dist_dir and os.path.abspath(dist_dir)
     if cli:
-        print "Building!"
+        print "\nBuilding!"
         print "* Target dir is ", os.path.abspath(path)
         print "* Dist dir is ", dist_dir
     for mod_dir in sorted(_list_modules(os.path.abspath(path))):
         if cli:
-            print "* %s" % (mod_dir),
+            print "* %s" % (os.path.dirname(mod_dir)),
         # Generate setup.py
         if setup(mod_dir, force=force, cli=False):
             # Call setup.py
