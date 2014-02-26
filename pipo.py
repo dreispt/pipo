@@ -15,7 +15,15 @@ from os.path import join
 def get_revno(module_path='.'):
     """ Get VCS revision for the given path """
     from subprocess import Popen, PIPE
-    cmd = 'bzr log --limit=1 --line ' + module_path
+
+    module_listdir = os.listdir(module_path)
+    if '.hg' in module_listdir:
+        cmd = "hg log --limit 1 --template '{rev}' " + module_path
+    elif '.git' in module_listdir:
+        cmd = "git log -1 --oneline --format=format:%at' " + module_path
+    else:
+        cmd = 'bzr log --limit=1 --line ' + module_path
+
     p = Popen(cmd.split(' '), stdout=PIPE, stderr=PIPE)
     out, err = p.communicate()
     revno = out.strip().split(':')[0]
@@ -71,13 +79,6 @@ def _get_pkgname(name):
 def _get_modname(path):
     return (os.path.basename(path) or
             os.path.basename(os.path.dirname(path)))
-
-
-#def _is_module(mod_dir):
-#    if os.path.isdir(mod_dir):
-#        if os.path.exists(join(mod_dir, '__openerp__.py')):
-#            return True
-#    return False
 
 
 def _list_modules(parent_path):
