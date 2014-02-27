@@ -10,6 +10,7 @@ It extends pip, providing all it's functions plus the following:
 
 import os
 from os.path import join
+import subprocess
 
 
 def get_revno(module_path='.'):
@@ -20,7 +21,7 @@ def get_revno(module_path='.'):
     if '.hg' in module_listdir:
         cmd = "hg log --limit 1 --template '{rev}' " + module_path
     elif '.git' in module_listdir:
-        cmd = "git log -1 --oneline --format=format:%at' " + module_path
+        cmd = "git log -1 --oneline --format=format:%at " + module_path
     else:
         cmd = 'bzr log --limit=1 --line ' + module_path
 
@@ -95,6 +96,15 @@ def _list_modules(parent_path):
     return res
 
 
+
+def _shell_run(path, command):
+    # import subprocess
+    init_path = os.path.abspath(os.getcwd())
+    os.chdir(path)
+    subprocess.call(command.split(' '))
+    os.chdir(init_path)
+
+
 def setup(mod_dir, series='7.0', force=True, cli=False):
     try:
         import setuptools
@@ -107,6 +117,11 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
     if not os.path.isdir(mod_dir):
         if cli:
             print("ERROR: Invalid directory")
+        return False
+
+    if os.path.islink(mod_dir):
+        if cli:
+            print("Ignore (symbolic link)")
         return False
 
     # module name
@@ -181,28 +196,31 @@ setuptools.setup(**setup_data)
 
 
 def build(path, dist_dir, force=False, cli=False):
-    import subprocess
     import shutil
 
     dist_dir = dist_dir and os.path.abspath(dist_dir)
     if cli:
-        print "\nBuilding!"
+        print "\n--------
+        print "Building!"
         print "* Target dir is ", os.path.abspath(path)
         print "* Dist dir is ", dist_dir
+        print "--------\n"
     for mod_dir in sorted(_list_modules(os.path.abspath(path))):
         if cli:
             print "* %s" % (os.path.basename(mod_dir)),
         # Generate setup.py
         if setup(mod_dir, force=force, cli=False):
             # Call setup.py
-            os.chdir(mod_dir)
-            subprocess.call(['python', 'setup.py', '--quiet', 'sdist'])
+            _shell_run(mod_dir, 'python setup.py --quiet sdist')
+            ###os.chdir(mod_dir)
+            ###subprocess.call(['python', 'setup.py', '--quiet', 'sdist'])
             # Move distribution to final location
             if dist_dir:
                 for x in os.listdir(join(mod_dir, 'dist')):
+                    print "->", dist_dir, x
                     shutil.move(join(mod_dir, 'dist', x), join(dist_dir, x))
-        #else:
-        #    print "."
+        else:
+            print "."
     # print 'DONE.'
 
 
@@ -241,10 +259,10 @@ if __name__ == "__main__":
             setup(params[0], cli=True)
 
         elif command == 'build' and params:
-            module_dir = params.pop()
-            if module_dir == '--force':
+            if params[0] == '--force':
                 force = True
-                module_dir = params[0]
+                params.pop(0)
+            module_dir = params[0]
             dist_dir = len(params) > 1 and params[1] or None
             if force:
                 print "FORCE"
