@@ -200,7 +200,7 @@ def build(path, dist_dir, force=False, cli=False):
 
     dist_dir = dist_dir and os.path.abspath(dist_dir)
     if cli:
-        print "\n--------
+        print "\n--------"
         print "Building!"
         print "* Target dir is ", os.path.abspath(path)
         print "* Dist dir is ", dist_dir
