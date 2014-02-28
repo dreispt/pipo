@@ -13,14 +13,14 @@ from os.path import join
 import subprocess
 
 
-def get_revno(module_path='.'):
+def get_revno(module_path='.', vcs='bzr'):
     """ Get VCS revision for the given path """
     from subprocess import Popen, PIPE
 
     module_listdir = os.listdir(module_path)
-    if '.hg' in module_listdir:
-        cmd = "hg log --limit 1 --template '{rev}' " + module_path
-    elif '.git' in module_listdir:
+    if vcs == 'hg':
+        cmd = "hg log --limit 1 --template {rev} " + module_path
+    elif vcs == 'git':
         cmd = "git log -1 --oneline --format=format:%at " + module_path
     else:
         cmd = 'bzr log --limit=1 --line ' + module_path
@@ -28,7 +28,7 @@ def get_revno(module_path='.'):
     p = Popen(cmd.split(' '), stdout=PIPE, stderr=PIPE)
     out, err = p.communicate()
     revno = out.strip().split(':')[0]
-    return revno
+    return revno or 0
 
 
 def get_package_data(dir):
@@ -83,18 +83,23 @@ def _get_modname(path):
 
 
 def _list_modules(parent_path):
+    vcs_dirs = ['.bzr', '.git', '.hg']
+    vcs = 'bzr'
     res = []
     if os.path.isdir(parent_path):
-        if os.path.exists(join(parent_path, '__openerp__.py')):
-            return [parent_path]
-        # else:
-        for root, dirs, files in os.walk(parent_path):
-            for x in dirs:
-                curdir = join(root, x)
-                if os.path.exists(join(curdir, '__openerp__.py')):
-                    res.append(curdir)
-    return res
+        vcs_dir = [x for x in vcs_dirs if x in os.listdir(parent_path)]
+        if vcs_dir:
+            vcs = vcs_dir[0][1:]
 
+        if os.path.exists(join(parent_path, '__openerp__.py')):
+            return [(parent_path, vcs)]
+        for curdir, dirs, files in os.walk(parent_path):
+            vcs_dir = [x for x in vcs_dirs if x in os.listdir(curdir)]
+            if vcs_dir:
+                vcs = vcs_dir[0][1:]
+            if os.path.exists(join(curdir, '__openerp__.py')):
+                res.append((curdir, vcs))
+    return res
 
 
 def _shell_run(path, command):
@@ -105,7 +110,7 @@ def _shell_run(path, command):
     os.chdir(init_path)
 
 
-def setup(mod_dir, series='7.0', force=True, cli=False):
+def setup(mod_dir, vcs=None, series='7.0', force=True, cli=False):
     try:
         import setuptools
     except ImportError:
@@ -135,18 +140,19 @@ def setup(mod_dir, series='7.0', force=True, cli=False):
 
     # Check vcs revision number
     # Unless forced, exit if revision number hasn't changed
-    revno = get_revno(mod_dir)
-    if not force:
-        try:
-            revno_file = os.path.join(mod_dir, 'revno.txt')
-            old_revno = open(revno_file, 'r').read()
-            if revno == old_revno:
-                return False  # "no changes."
-            else:
-                print mod_dir, old_revno, '->', revno
-        except IOError:
-            pass
-    open('revno.txt', 'w').write(revno)
+    if vcs:
+        revno = get_revno(mod_dir, vcs)
+        if not force:
+            try:
+                revno_file = os.path.join(mod_dir, 'revno.txt')
+                old_revno = open(revno_file, 'r').read()
+                if revno == old_revno:
+                    return False  # "no changes."
+                else:
+                    print mod_dir, old_revno, '->', revno
+            except IOError:
+                pass
+        open('revno.txt', 'w').write(revno)
 
     # prepare data for setuptools
     packages = ([mod_dotpath] +
@@ -205,11 +211,11 @@ def build(path, dist_dir, force=False, cli=False):
         print "* Target dir is ", os.path.abspath(path)
         print "* Dist dir is ", dist_dir
         print "--------\n"
-    for mod_dir in sorted(_list_modules(os.path.abspath(path))):
+    for mod_dir, vcs in _list_modules(os.path.abspath(path)):
         if cli:
-            print "* %s" % (os.path.basename(mod_dir)),
+            print "* %s %s:" % (os.path.basename(mod_dir), vcs),
         # Generate setup.py
-        if setup(mod_dir, force=force, cli=False):
+        if setup(mod_dir, vcs, force=force, cli=False):
             # Call setup.py
             _shell_run(mod_dir, 'python setup.py --quiet sdist')
             ###os.chdir(mod_dir)
