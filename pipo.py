@@ -99,7 +99,7 @@ def _list_modules(parent_path):
                 vcs = vcs_dir[0][1:]
             if os.path.exists(join(curdir, '__openerp__.py')):
                 res.append((curdir, vcs))
-    return res
+    return sorted(res)
 
 
 def _shell_run(path, command):
@@ -146,12 +146,12 @@ def setup(mod_dir, vcs=None, series='7.0', force=True, cli=False):
             try:
                 revno_file = os.path.join(mod_dir, 'revno.txt')
                 old_revno = open(revno_file, 'r').read()
-                if revno == old_revno:
-                    return False  # "no changes."
-                else:
-                    print mod_dir, old_revno, '->', revno
             except IOError:
-                pass
+                old_revno = 0
+            if revno == old_revno:
+                return False  # "no changes."
+            else:
+                print mod_dir, old_revno, '->', revno
         open('revno.txt', 'w').write(revno)
 
     # prepare data for setuptools
@@ -174,7 +174,7 @@ def setup(mod_dir, vcs=None, series='7.0', force=True, cli=False):
         'version': series + '.' + str(revno),
         'description': manif.get('name'),
         'long_description': manif.get('description'),
-        'url': manif.get('website', 'http://openerpapps.info'),
+        'url': manif.get('website') or 'http://openerpapps.info',
         'author': manif.get('author', 'Unknown'),
         'author_email': 'info@openerp.com',
         'license': manif.get('license', 'AGPL-3'),
@@ -210,10 +210,10 @@ def build(path, dist_dir, force=False, cli=False):
         print "Building!"
         print "* Target dir is ", os.path.abspath(path)
         print "* Dist dir is ", dist_dir
-        print "--------\n"
+        print "--------"
     for mod_dir, vcs in _list_modules(os.path.abspath(path)):
         if cli:
-            print "* %s %s:" % (os.path.basename(mod_dir), vcs),
+            print "* %s %s:" % (vcs, os.path.basename(mod_dir)),
         # Generate setup.py
         if setup(mod_dir, vcs, force=force, cli=False):
             # Call setup.py
