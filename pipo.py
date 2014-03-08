@@ -13,6 +13,15 @@ from os.path import join
 import subprocess
 
 
+SETUP_PY = """\
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+import setuptools
+setup_data = %s
+setuptools.setup(**setup_data)
+"""
+
+
 def get_revno(module_path='.', vcs='bzr'):
     """ Get VCS revision for the given path """
     from subprocess import Popen, PIPE
@@ -82,7 +91,7 @@ def _get_modname(path):
             os.path.basename(os.path.dirname(path)))
 
 
-def _list_modules(parent_path):
+def _list_modules(parent_path):  # todo: deprecate
     vcs_dirs = ['.bzr', '.git', '.hg']
     vcs = 'bzr'
     res = []
@@ -185,13 +194,7 @@ def setup(mod_dir, vcs=None, series='7.0', force=True, cli=False):
 
     setup_data_text = _pprint(setup_data)
     with open(os.path.join(mod_dir, 'setup.py'), 'w') as f:
-        f.write("""\
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
-import setuptools
-setup_data = %s
-setuptools.setup(**setup_data)
-""" % (setup_data_text))
+        f.write(SETUP_PY % (setup_data_text))
 
     # Create README avoiding build warnings
     open(join(mod_dir, 'README.rst'), 'w').write(manif.get('description', ''))
