@@ -7,10 +7,13 @@ It extends pip, providing all it's functions plus the following:
     setup       generate the setpup.py file
     build       generate and run setup.py to create source dist
 """
-
+# from __future__ import unicode_literals
+from __future__ import print_function
+import argparse
 import os
 from os.path import join
 import subprocess
+from subprocess import Popen, PIPE
 
 
 SETUP_PY = """\
@@ -24,9 +27,6 @@ setuptools.setup(**setup_data)
 
 def get_revno(module_path='.', vcs='bzr'):
     """ Get VCS revision for the given path """
-    from subprocess import Popen, PIPE
-
-    module_listdir = os.listdir(module_path)
     if vcs == 'hg':
         cmd = "hg log --limit 1 --template {rev} " + module_path
     elif vcs == 'git':
@@ -120,6 +120,9 @@ def _shell_run(path, command):
 
 
 def setup(mod_dir, vcs=None, series='7.0', force=True, cli=False):
+    """\
+    Add the setup.py file to an OpenERP module.
+    """
     try:
         import setuptools
     except ImportError:
@@ -160,7 +163,7 @@ def setup(mod_dir, vcs=None, series='7.0', force=True, cli=False):
             if revno == old_revno:
                 return False  # "no changes."
             else:
-                print mod_dir, old_revno, '->', revno
+                print("%s: %s -> %s" % (mod_dir, old_revno, revno))
         open('revno.txt', 'w').write(revno)
 
     # prepare data for setuptools
@@ -197,7 +200,8 @@ def setup(mod_dir, vcs=None, series='7.0', force=True, cli=False):
         f.write(SETUP_PY % (setup_data_text))
 
     # Create README avoiding build warnings
-    open(join(mod_dir, 'README.rst'), 'w').write(manif.get('description', ''))
+    readme = manif.get('description', '')  # .encode('UTF-8')
+    open(join(mod_dir, 'README.rst'), 'w').write(readme)
     # Build Manifest
     open(join(mod_dir, 'MANIFEST.in'), 'w').write(get_manifest_lines(mod_dir))
     #os.chdir(cwd)
@@ -205,18 +209,22 @@ def setup(mod_dir, vcs=None, series='7.0', force=True, cli=False):
 
 
 def build(path, dist_dir, force=False, cli=False):
+    """\
+    Discover all OpenERP modules under a directory, build their packages and
+    place them in a distribution directory.
+    """
     import shutil
 
     dist_dir = dist_dir and os.path.abspath(dist_dir)
     if cli:
-        print "\n--------"
-        print "Building!"
-        print "* Target dir is ", os.path.abspath(path)
-        print "* Dist dir is ", dist_dir
-        print "--------"
+        print("\n--------")
+        print("Building!")
+        print("* Target dir is %s" % os.path.abspath(path))
+        print("* Dist dir is %s" % dist_dir)
+        print("--------")
     for mod_dir, vcs in _list_modules(os.path.abspath(path)):
         if cli:
-            print "* %s %s:" % (vcs, os.path.basename(mod_dir)),
+            print("* %s %s:" % (vcs, os.path.basename(mod_dir)), end=" ")
         # Generate setup.py
         if setup(mod_dir, vcs, force=force, cli=False):
             # Call setup.py
@@ -226,22 +234,21 @@ def build(path, dist_dir, force=False, cli=False):
             # Move distribution to final location
             if dist_dir:
                 for x in os.listdir(join(mod_dir, 'dist')):
-                    print "->", dist_dir, x
+                    print("%s -> %s" % (dist_dir, x))
                     shutil.move(join(mod_dir, 'dist', x), join(dist_dir, x))
         else:
-            print "."
+            print(".")
     # print 'DONE.'
 
 
 def _run_shell(cmd):
-    from subprocess import Popen, PIPE
-    print ' '.join(cmd)
+    from subprocess import Popen
+    print(' '.join(cmd))
     p = Popen(cmd)
     p.communicate()
 
 
 def create(name):
-    from subprocess import Popen, PIPE
     _run_shell(['virtualenv', '--system-site-packages', name])
     _run_shell(['createdb', name])
 
@@ -256,29 +263,24 @@ def pip(command, *args):
 
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2 or sys.argv[1] == "help":
-        print(__doc__)
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="subparser_name")
+
+    parser_setup = subparsers.add_parser("setup")
+    parser_setup.add_argument("mod_dir", help="Module directory")
+
+    parser_build = subparsers.add_parser("build")
+    parser_build.add_argument("path", help="Path to discover modules")
+    parser_build.add_argument("dist_dir", help="Directory for built packages")
+    parser_build.add_argument(
+        "-f", "--force", action="store_true",
+        help="Force build even if module has no changes")
+
+    args = parser.parse_args()
+    print(args)
+    if args.subparser_name == "setup":
+        setup(args.mod_dir, cli=True)
+    elif args.subparser_name == "build":
+        build(args.path, args.dist_dir, force=args.force, cli=True)
     else:
-        command = sys.argv[1]
-        params = sys.argv[2:]
-        force = False
-
-        if command == 'setup' and params:
-            setup(params[0], cli=True)
-
-        elif command == 'build' and params:
-            if params[0] == '--force':
-                force = True
-                params.pop(0)
-            module_dir = params[0]
-            dist_dir = len(params) > 1 and params[1] or None
-            if force:
-                print "FORCE"
-            build(module_dir, dist_dir, force=force, cli=True)
-
-        elif command == 'create':
-            create(params[0])
-
-        else:
-            pip(command, params)
+        print("Invalid command.")
