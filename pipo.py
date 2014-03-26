@@ -348,7 +348,7 @@ if __name__ == "__main__":
         help="Force build even if module has no changes")
     parser_build.add_argument(
         "-p", "--pull", action="store_true",
-        help="Don't pull repository changes")
+        help="Pull changes from remote VCS repositories")
 
     args = parser.parse_args()
     if args.subparser_name == "setup":
